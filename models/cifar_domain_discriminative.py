@@ -51,7 +51,8 @@ class CifarDomainDiscriminative(CifarModel):
             'accuracy_sum_prob_w_prior_shift': accuracy_sum_prob_w_prior_shift,
             'accuracy_max_prob_w_prior_shift': accuracy_max_prob_w_prior_shift,
             'outputs': outputs.cpu().numpy(),
-            'features': features.cpu().numpy()
+            'features': features.cpu().numpy(),
+            'targets': targets.cpu().numpy()
         }
         return test_result
     

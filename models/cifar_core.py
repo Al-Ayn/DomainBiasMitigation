@@ -27,7 +27,10 @@ class CifarModel():
     def set_network(self, opt):
         """Define the network"""
         
-        self.network = basenet.ResNet18(num_classes=opt['output_dim']).to(self.device)
+        #self.network = basenet.ResNet18(num_classes=opt['output_dim']).to(self.device)
+        #self.network = basenet.ResNet50(n_classes=opt['output_dim'], pretrained="IMAGENET1K_V1").to(self.device) #pretrained=None means train from scratch
+        #self.network = basenet.ViT_B_16().to(self.device)
+        self.network = basenet.ViT_B_16(n_classes=opt['output_dim']).to(self.device)
 
     def forward(self, x):
         out, feature = self.network(x)
@@ -49,16 +52,19 @@ class CifarModel():
             transform_train = transforms.Compose([
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
+                transforms.Resize((224, 224)), #for vitb16
                 transforms.ToTensor(),
                 normalize,
             ])
         else:
             transform_train = transforms.Compose([
+                transforms.Resize((224, 224)), #for vitb16
                 transforms.ToTensor(),
                 normalize,
             ])
 
         transform_test = transforms.Compose([
+            transforms.Resize((224, 224)), #for vitb16
             transforms.ToTensor(),
             normalize,
         ])
@@ -165,6 +171,7 @@ class CifarModel():
         output_list = []
         feature_list = []
         predict_list = []
+        target_list = []
         with torch.no_grad():
             for i, (images, targets) in enumerate(loader):
                 images, targets = images.to(self.device), targets.to(self.device)
@@ -179,12 +186,14 @@ class CifarModel():
                 predict_list.extend(predicted.tolist())
                 output_list.append(outputs.cpu().numpy())
                 feature_list.append(features.cpu().numpy())
+                target_list.append(targets.cpu().numpy())
 
         test_result = {
             'accuracy': correct*100. / total,
             'predict_labels': predict_list,
             'outputs': np.vstack(output_list),
-            'features': np.vstack(feature_list)
+            'features': np.vstack(feature_list),
+            'targets': np.concatenate(target_list)
         }
         return test_result
 

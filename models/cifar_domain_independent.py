@@ -55,7 +55,8 @@ class CifarDomainIndependent(CifarModel):
             'accuracy_conditional': accuracy_conditional,
             'accuracy_sum_out': accuracy_sum_out,
             'outputs': outputs.cpu().numpy(),
-            'features': features.cpu().numpy()
+            'features': features.cpu().numpy(),
+            'targets': targets.cpu().numpy()
         }
         return test_result
     

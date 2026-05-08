@@ -20,12 +20,14 @@ class CifarUniConfAdv(CifarModel):
     def set_network(self, opt):
         """Define the network"""
         
-        self.base_network = basenet.ResNet18_base().to(self.device)
+        #self.base_network = basenet.ResNet18_base().to(self.device)
+        self.base_network = basenet.ResNet50_base(pretrained="IMAGENET1K_V1").to(self.device)
+        self.base_network = basenet.ViT_B_16_base().to(self.device)
         
         # Two fc layers on top of the base network, one for target classification,
         # one for domain classification
-        self.class_network = nn.Linear(512, opt['output_dim']).to(self.device)
-        self.domain_network = nn.Linear(512, 2).to(self.device)
+        self.class_network = nn.Linear(128, opt['output_dim']).to(self.device)
+        self.domain_network = nn.Linear(128, 2).to(self.device)
         
     def set_data(self, opt):
         """Set up the dataloaders"""
@@ -43,16 +45,19 @@ class CifarUniConfAdv(CifarModel):
             transform_train = transforms.Compose([
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
+                transforms.Resize((224, 224)), #for vitb16
                 transforms.ToTensor(),
                 normalize,
             ])
         else:
             transform_train = transforms.Compose([
+                transforms.Resize((224, 224)), #for vitb16                
                 transforms.ToTensor(),
                 normalize,
             ])
 
         transform_test = transforms.Compose([
+            transforms.Resize((224, 224)), #for vitb16            
             transforms.ToTensor(),
             normalize,
         ])
@@ -195,6 +200,8 @@ class CifarUniConfAdv(CifarModel):
         domain_output_list = []
         class_predict_list = []
         domain_predict_list = []
+        target_list = []
+        target_list_domain = []
         
         with torch.no_grad():
             for i, (images, class_labels, domain_labels) in enumerate(loader):
@@ -221,6 +228,8 @@ class CifarUniConfAdv(CifarModel):
                 class_output_list.append(class_outputs.cpu().numpy())
                 domain_output_list.append(domain_outputs.cpu().numpy())
                 feature_list.append(features.cpu().numpy())
+                target_list.append(class_labels.cpu().numpy())
+                target_list_domain.append(domain_labels.cpu().numpy())
                 
         test_result = {
             'class_loss': test_class_loss/len(loader),
@@ -231,7 +240,9 @@ class CifarUniConfAdv(CifarModel):
             'domain_predict_labels': domain_predict_list,
             'class_outputs': np.vstack(class_output_list),
             'domain_outputs': np.vstack(domain_output_list),
-            'features': np.vstack(feature_list)
+            'features': np.vstack(feature_list),
+            'targets': np.concatenate(target_list),
+            'targets_domain': np.concatenate(target_list_domain)
         }
         
         return test_result
