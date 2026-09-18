@@ -248,6 +248,20 @@ def main():
         lo, med, hi = np.quantile(diffs, [0.025, 0.5, 0.975])
         print(f"bootstrap {first}-{second}: {lo:.7f}, {med:.7f}, {hi:.7f}")
 
+    # Calibrated perturbation diagnostics used in the manuscript. Estimate the
+    # observation-noise scale with residual degrees of freedom M-rank(B), then
+    # add its exact conditional variance sigma_hat^2 ||w||_2^2 to each held-out
+    # squared error. The coordinatewise bias radius at eta=.25 is .25 ||w||_1.
+    theta_ls = np.linalg.pinv(P["B"]) @ ((P["train"].hg - P["train"].ag).to_numpy(float) - P["home_adv"])
+    train_resid = ((P["train"].hg - P["train"].ag).to_numpy(float) - P["home_adv"]) - P["B"] @ theta_ls
+    sigma_hat = float(np.sqrt(np.sum(train_resid**2) / (len(train_resid) - np.linalg.matrix_rank(P["B"]))))
+    print("residual sigma_hat =", sigma_hat)
+    for label in ["Electrical", "Robust", "Implicit"]:
+        err, W = raw[label]
+        expected_rmse = float(np.sqrt(np.mean(err**2) + sigma_hat**2 * np.mean(np.sum(W*W, axis=1))))
+        bias_radius = float(0.25 * np.mean(np.sum(np.abs(W), axis=1)))
+        print(f"stress {label}: iid_expected_rmse={expected_rmse:.7f}, box_eta_.25_radius={bias_radius:.7f}")
+
     e = P["eval"](P["test"], "electrical")
     r = P["eval"](P["test"], "robust", best_lam)
     i = P["eval"](P["test"], "implicit", best_alpha)
@@ -256,6 +270,7 @@ def main():
     assert abs(e["rmse"] - 1.8612541517140195) < 5e-7
     assert abs(r["rmse"] - 1.8316728570398009) < 5e-7
     assert abs(i["rmse"] - 1.916713111058086) < 5e-7
+    assert abs(sigma_hat - 1.349414287489426) < 5e-10
     print("EPL_EXPERIMENT_CHECKS_PASSED")
 
 
